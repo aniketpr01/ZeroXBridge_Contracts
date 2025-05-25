@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./ElipticCurve.sol";
 
-library Starknet {
+abstract contract Starknet {
     //Starknet curve constants
     uint256 private constant K_BETA = 3141592653589793238462643383279502884197169399375105820974944592307816406665;
     uint256 private constant K_MODULUS = 0x800000000000011000000000000000000000000000000000000000000000001;

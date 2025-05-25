@@ -12,7 +12,7 @@ import "../utils/ElipticCurve.sol";
 import "../utils/Starknet.sol";
 import "./ProofRegistry.sol";
 
-contract ZeroXBridgeL1 is Ownable {
+contract ZeroXBridgeL1 is Ownable, Starknet {
     using ECDSA for bytes32;
 
     // Proof Registry
@@ -264,10 +264,7 @@ contract ZeroXBridgeL1 is Ownable {
 
         require(commitmentHash == expectedCommitmentHash, "ZeroXBridge: Invalid commitment hash");
 
-        require(
-            Starknet.verifyStarknetSignature(commitmentHash, starknetSig, starknetPubKey),
-            "ZeroXBridge: Invalid signature"
-        );
+        require(verifyStarknetSignature(commitmentHash, starknetSig, starknetPubKey), "ZeroXBridge: Invalid signature");
 
         // Check proof registry for verified root
         uint256 verifiedRoot = proofRegistry.getVerifiedMerkleRoot(commitmentHash);

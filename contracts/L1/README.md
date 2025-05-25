@@ -1,6 +1,10 @@
-## Foundry
+# L1 Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Deployed (SEPOLIA)
+
+- Proof Registry: [0xafac655B56B0403B6ADA6d0EF1A60257AF093d16](https://sepolia.etherscan.io/address/0xafac655B56B0403B6ADA6d0EF1A60257AF093d16#code)
+
+- L1 Bridge: [0x8F25bFe32269632dfd8D223D51FF145414d8107b](https://sepolia.etherscan.io/address/0x8F25bFe32269632dfd8D223D51FF145414d8107b#code)
 
 Foundry consists of:
 

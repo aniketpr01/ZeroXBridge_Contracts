@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {Starknet} from "../utils/Starknet.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {console} from "forge-std/console.sol";
 
@@ -528,7 +527,7 @@ contract ZeroXBridgeL1Test is Test {
         // uint256 pubKeyY = 0x017d8924fe415ba698958688fc37f5c60a28067ceb4dbe76107be46c871b3397;
 
         // Call the function
-        bool isValid = Starknet.verifyStarknetSignature(messageHash, sig, pubKeyX);
+        bool isValid = bridge.verifyStarknetSignature(messageHash, sig, pubKeyX);
         assertTrue(isValid, "Valid signature should pass");
     }
 
@@ -541,7 +540,7 @@ contract ZeroXBridgeL1Test is Test {
         uint256 pubKeyX = 0x03f25ebd3224d52135bfb04a12713f3e3103cc25e82f0dc583177289f45a39cf;
         // uint256 pubKeyY = 0x017d8924fe415ba698958688fc37f5c60a28067ceb4dbe76107be46c871b3397;
 
-        bool isValid = Starknet.verifyStarknetSignature(messageHash, sig, pubKeyX);
+        bool isValid = bridge.verifyStarknetSignature(messageHash, sig, pubKeyX);
         assertFalse(isValid, "Invalid signature should fail");
     }
 
@@ -554,7 +553,7 @@ contract ZeroXBridgeL1Test is Test {
         uint256 pubKeyX = 0;
 
         vm.expectRevert("ZeroXBridge: Invalid Starknet public key");
-        Starknet.verifyStarknetSignature(messageHash, sig, pubKeyX);
+        bridge.verifyStarknetSignature(messageHash, sig, pubKeyX);
     }
 
     function testSetRelayerStatus() public {
