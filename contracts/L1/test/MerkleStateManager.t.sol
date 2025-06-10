@@ -30,11 +30,7 @@ contract MerkleStateManagerTest is Test {
     );
 
     event WithdrawalRootSynced(
-        uint256 indexed index,
-        bytes32 newRoot,
-        address indexed relayer,
-        uint256 timestamp,
-        uint256 blockNumber
+        uint256 indexed index, bytes32 newRoot, address indexed relayer, uint256 timestamp, uint256 blockNumber
     );
 
     event RelayerStatusChanged(address indexed relayer, bool status);
@@ -71,15 +67,15 @@ contract MerkleStateManagerTest is Test {
     function test_UpdateDepositRootFromCommitment() public {
         // First, calculate the expected root value correctly
         bytes32 expectedRoot = USER_DEPOSIT_HASH; // For the first leaf, the root is the leaf itself
-        
+
         vm.expectEmit(true, true, false, true);
         emit CommitmentProcessed(USER_DEPOSIT_HASH, 0);
-        
+
         vm.expectEmit(true, true, true, true);
         emit DepositRootUpdated(1, expectedRoot, USER_DEPOSIT_HASH, 0, block.timestamp, block.number);
-        
+
         merkleManager.updateDepositRootFromCommitment(USER_DEPOSIT_HASH);
-        
+
         assertEq(merkleManager.depositRootIndex(), 1);
         assertEq(merkleManager.depositLeafCount(), 1);
         assertTrue(merkleManager.processedCommitments(USER_DEPOSIT_HASH));
@@ -229,27 +225,27 @@ contract MerkleStateManagerTest is Test {
         bool result = merkleManager.verifyDepositProof(USER_DEPOSIT_HASH, 0, proof);
         assertTrue(result, "Single deposit proof verification failed");
     }
-    
+
     function test_VerifyDepositProofWithTwoDeposits() public {
         // Add first commitment
         bytes32 firstDeposit = USER_DEPOSIT_HASH;
         merkleManager.updateDepositRootFromCommitment(firstDeposit);
-        
+
         // Add second commitment
         bytes32 secondDeposit = keccak256("SECOND_DEPOSIT");
         merkleManager.updateDepositRootFromCommitment(secondDeposit);
-        
+
         // Generate and verify proof for first leaf (index 0)
         bytes32[] memory proofForFirst = merkleManager.getDepositProof(0);
         bool resultFirst = merkleManager.verifyDepositProof(firstDeposit, 0, proofForFirst);
         assertTrue(resultFirst, "First deposit proof verification failed with two deposits");
-        
+
         // Generate and verify proof for second leaf (index 1)
         bytes32[] memory proofForSecond = merkleManager.getDepositProof(1);
         bool resultSecond = merkleManager.verifyDepositProof(secondDeposit, 1, proofForSecond);
         assertTrue(resultSecond, "Second deposit proof verification failed with two deposits");
     }
-    
+
     function test_VerifyDepositProofWithMultipleDeposits() public {
         // Add four deposits to create a deeper tree
         bytes32[] memory deposits = new bytes32[](4);
@@ -257,136 +253,139 @@ contract MerkleStateManagerTest is Test {
         deposits[1] = keccak256("SECOND_DEPOSIT");
         deposits[2] = keccak256("THIRD_DEPOSIT");
         deposits[3] = keccak256("FOURTH_DEPOSIT");
-        
-        for (uint i = 0; i < deposits.length; i++) {
+
+        for (uint256 i = 0; i < deposits.length; i++) {
             merkleManager.updateDepositRootFromCommitment(deposits[i]);
         }
-        
+
         // Verify all deposits
-        for (uint i = 0; i < deposits.length; i++) {
+        for (uint256 i = 0; i < deposits.length; i++) {
             bytes32[] memory proof = merkleManager.getDepositProof(i);
             bool result = merkleManager.verifyDepositProof(deposits[i], i, proof);
-            assertTrue(result, string(abi.encodePacked("Deposit ", i+1, " proof verification failed")));
+            assertTrue(result, string(abi.encodePacked("Deposit ", i + 1, " proof verification failed")));
         }
     }
-    
+
     function test_VerifyDepositProofWithOddNumberOfDeposits() public {
         // Add three deposits to test odd number of nodes (requiring special handling)
         bytes32[] memory deposits = new bytes32[](3);
         deposits[0] = USER_DEPOSIT_HASH;
         deposits[1] = keccak256("SECOND_DEPOSIT");
         deposits[2] = keccak256("THIRD_DEPOSIT");
-        
-        for (uint i = 0; i < deposits.length; i++) {
+
+        for (uint256 i = 0; i < deposits.length; i++) {
             merkleManager.updateDepositRootFromCommitment(deposits[i]);
         }
-        
+
         // Debug: Print the tree structure
         debugPrintMerkleTree(deposits);
-        
+
         // Get the deposit root
         bytes32 root = merkleManager.depositRoot();
         console.log("Deposit root from contract:");
         console.logBytes32(root);
-        
+
         // Verify deposits 0 and 1 (these should work)
-        for (uint i = 0; i < 2; i++) {
+        for (uint256 i = 0; i < 2; i++) {
             bytes32[] memory proof = merkleManager.getDepositProof(i);
             console.log("\nLeaf index:", i);
             console.log("Proof length:", proof.length);
-            for (uint j = 0; j < proof.length; j++) {
+            for (uint256 j = 0; j < proof.length; j++) {
                 console.log("Proof element", j, ":");
                 console.logBytes32(proof[j]);
             }
             bool result = merkleManager.verifyDepositProof(deposits[i], i, proof);
-            assertTrue(result, string(abi.encodePacked("Deposit ", i+1, " proof verification failed with odd number of deposits")));
+            assertTrue(
+                result,
+                string(abi.encodePacked("Deposit ", i + 1, " proof verification failed with odd number of deposits"))
+            );
         }
-        
+
         // Special handling for the last leaf (index 2)
-        uint lastIndex = 2;
+        uint256 lastIndex = 2;
         bytes32[] memory lastProof = merkleManager.getDepositProof(lastIndex);
         console.log("\nLast leaf index:", lastIndex);
         console.log("Last leaf value:");
         console.logBytes32(deposits[lastIndex]);
         console.log("Last proof length:", lastProof.length);
-        for (uint j = 0; j < lastProof.length; j++) {
+        for (uint256 j = 0; j < lastProof.length; j++) {
             console.log("Last proof element", j, ":");
             console.logBytes32(lastProof[j]);
         }
-        
+
         // Manual verification for the last leaf
         bytes32 computedHash = deposits[lastIndex];
         console.log("\nManual verification for last leaf:");
         console.log("Starting with leaf:");
         console.logBytes32(computedHash);
-        
+
         // Level 0: The last leaf is paired with itself
         computedHash = keccak256(abi.encodePacked(computedHash, computedHash));
         console.log("After self-pairing at level 0:");
         console.logBytes32(computedHash);
-        
+
         // Level 1: Hash with the first proof element (which should be the hash of leaves 0 & 1)
         computedHash = keccak256(abi.encodePacked(lastProof[0], computedHash));
         console.log("After hashing with proof[0] at level 1:");
         console.logBytes32(computedHash);
-        
+
         console.log("\nFinal computed hash:");
         console.logBytes32(computedHash);
         console.log("Should match root:");
         console.logBytes32(root);
-        
+
         // Now try the contract's verification
         bool lastResult = merkleManager.verifyDepositProof(deposits[lastIndex], lastIndex, lastProof);
         assertTrue(lastResult, "Deposit 3 proof verification failed with odd number of deposits");
     }
-    
+
     function debugPrintMerkleTree(bytes32[] memory leaves) internal {
         console.log("\n--- DEBUG: MERKLE TREE STRUCTURE ---");
         console.log("Total leaves:", leaves.length);
-        
+
         // Level 0 (leaves)
         console.log("Level 0 (leaves):");
-        for (uint i = 0; i < leaves.length; i++) {
+        for (uint256 i = 0; i < leaves.length; i++) {
             console.log("  Node", i, ":");
             console.logBytes32(leaves[i]);
         }
-        
+
         // Calculate higher levels
         uint256 n = leaves.length;
         bytes32[] memory nodes = new bytes32[](n);
-        for (uint i = 0; i < n; i++) {
+        for (uint256 i = 0; i < n; i++) {
             nodes[i] = leaves[i];
         }
-        
+
         uint256 level = 1;
         while (n > 1) {
             console.log("Level", level, ":");
             uint256 nextLevelSize = (n + 1) / 2;
-            
-            for (uint i = 0; i < n/2; i++) {
-                bytes32 left = nodes[i*2];
-                bytes32 right = nodes[i*2 + 1];
+
+            for (uint256 i = 0; i < n / 2; i++) {
+                bytes32 left = nodes[i * 2];
+                bytes32 right = nodes[i * 2 + 1];
                 bytes32 parent = keccak256(abi.encodePacked(left, right));
                 console.log("  Node", i);
-                console.log("    from", i*2, "&", i*2+1);
+                console.log("    from", i * 2, "&", i * 2 + 1);
                 console.logBytes32(parent);
                 nodes[i] = parent;
             }
-            
+
             // Handle odd node
             if (n % 2 == 1) {
-                console.log("  Node", n/2);
-                console.log("    duplicate of", n-1);
-                console.logBytes32(nodes[n-1]);
-                nodes[n/2] = nodes[n-1];
-                n = n/2 + 1;
+                console.log("  Node", n / 2);
+                console.log("    duplicate of", n - 1);
+                console.logBytes32(nodes[n - 1]);
+                nodes[n / 2] = nodes[n - 1];
+                n = n / 2 + 1;
             } else {
-                n = n/2;
+                n = n / 2;
             }
-            
+
             level++;
         }
-        
+
         console.log("Root:");
         console.logBytes32(nodes[0]);
         console.log("--- END DEBUG ---\n");
@@ -449,19 +448,19 @@ contract MerkleStateManagerTest is Test {
     function test_RateLimiting() public {
         // First update should work
         merkleManager.updateDepositRootFromCommitment(USER_DEPOSIT_HASH);
-        
+
         // Make 9 more updates to reach the limit of 10 operations
-        for (uint i = 1; i < 10; i++) {
+        for (uint256 i = 1; i < 10; i++) {
             merkleManager.updateDepositRootFromCommitment(keccak256(abi.encodePacked("deposit_", i)));
         }
-        
+
         // Next update (11th) should fail due to exceeding rate limit
         vm.expectRevert("MerkleStateManager: Rate limit exceeded");
         merkleManager.updateDepositRootFromCommitment(keccak256("exceeding_rate_limit"));
-        
+
         // Fast forward time past rate limit window
         vm.warp(block.timestamp + 16); // 15 seconds + 1 second
-        
+
         // Now it should work
         merkleManager.updateDepositRootFromCommitment(keccak256("another_deposit"));
     }

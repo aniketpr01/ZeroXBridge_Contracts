@@ -21,7 +21,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
     bytes32 public withdrawalRoot;
     uint256 public depositRootIndex;
     uint256 public withdrawalRootIndex;
-    
+
     // Storage for intermediate tree nodes to optimize proof generation
     // Indexed by [level][position] for efficient retrieval
     mapping(uint256 => mapping(uint256 => bytes32)) public treeNodes;
@@ -42,7 +42,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
     uint256 private constant RATE_LIMIT_WINDOW = 15 seconds;
     uint256 private constant MAX_OPERATIONS_PER_WINDOW = 10;
     uint256 public constant MAX_TREE_DEPTH = 32;
-    uint256 public constant MAX_LEAF_COUNT = 2**32 - 1;
+    uint256 public constant MAX_LEAF_COUNT = 2 ** 32 - 1;
 
     event DepositRootUpdated(
         uint256 indexed index,
@@ -54,11 +54,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
     );
 
     event WithdrawalRootSynced(
-        uint256 indexed index,
-        bytes32 newRoot,
-        address indexed relayer,
-        uint256 timestamp,
-        uint256 blockNumber
+        uint256 indexed index, bytes32 newRoot, address indexed relayer, uint256 timestamp, uint256 blockNumber
     );
 
     event RelayerStatusChanged(address indexed relayer, bool status);
@@ -72,11 +68,9 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @param genesisDepositRoot The initial deposit root
      * @param genesisWithdrawalRoot The initial withdrawal root
      */
-    constructor(
-        address initialOwner,
-        bytes32 genesisDepositRoot,
-        bytes32 genesisWithdrawalRoot
-    ) Ownable(initialOwner) {
+    constructor(address initialOwner, bytes32 genesisDepositRoot, bytes32 genesisWithdrawalRoot)
+        Ownable(initialOwner)
+    {
         require(initialOwner != address(0), "MerkleStateManager: Invalid owner");
         require(genesisDepositRoot != bytes32(0), "MerkleStateManager: Invalid genesis deposit root");
         require(genesisWithdrawalRoot != bytes32(0), "MerkleStateManager: Invalid genesis withdrawal root");
@@ -112,9 +106,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @dev Updates deposit root from a new commitment using Alexandria tree structure
      * @param commitment The commitment hash to add to the tree
      */
-    function updateDepositRootFromCommitment(
-        bytes32 commitment
-    ) external whenNotPaused nonReentrant rateLimited {
+    function updateDepositRootFromCommitment(bytes32 commitment) external whenNotPaused nonReentrant rateLimited {
         require(commitment != bytes32(0), "MerkleStateManager: Invalid commitment");
         require(!processedCommitments[commitment], "MerkleStateManager: Commitment already processed");
         require(depositLeafCount < MAX_LEAF_COUNT, "MerkleStateManager: Tree capacity exceeded");
@@ -135,23 +127,14 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         depositRootTimestamps[depositRootIndex] = block.timestamp;
 
         emit CommitmentProcessed(commitment, leafIndex);
-        emit DepositRootUpdated(
-            depositRootIndex,
-            newRoot,
-            commitment,
-            leafIndex,
-            block.timestamp,
-            block.number
-        );
+        emit DepositRootUpdated(depositRootIndex, newRoot, commitment, leafIndex, block.timestamp, block.number);
     }
 
     /**
      * @dev Batch update deposit roots for efficiency
      * @param commitments Array of commitments to process
      */
-    function batchUpdateDepositRoots(
-        bytes32[] calldata commitments
-    ) external whenNotPaused nonReentrant rateLimited {
+    function batchUpdateDepositRoots(bytes32[] calldata commitments) external whenNotPaused nonReentrant rateLimited {
         require(commitments.length > 0 && commitments.length <= 100, "MerkleStateManager: Invalid batch size");
         require(depositLeafCount + commitments.length <= MAX_LEAF_COUNT, "MerkleStateManager: Batch exceeds capacity");
         uint256 startLeafIndex = depositLeafCount;
@@ -193,9 +176,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @dev Syncs withdrawal root from L2
      * @param newRoot The new withdrawal root from L2
      */
-    function syncWithdrawalRootFromL2(
-        bytes32 newRoot
-    ) external whenNotPaused nonReentrant onlyRelayer rateLimited {
+    function syncWithdrawalRootFromL2(bytes32 newRoot) external whenNotPaused nonReentrant onlyRelayer rateLimited {
         require(newRoot != bytes32(0), "MerkleStateManager: Invalid root");
         require(newRoot != withdrawalRoot, "MerkleStateManager: Root unchanged");
         withdrawalRoot = newRoot;
@@ -203,13 +184,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         withdrawalRootHistory[withdrawalRootIndex] = newRoot;
         withdrawalRootTimestamps[withdrawalRootIndex] = block.timestamp;
 
-        emit WithdrawalRootSynced(
-            withdrawalRootIndex,
-            newRoot,
-            msg.sender,
-            block.timestamp,
-            block.number
-        );
+        emit WithdrawalRootSynced(withdrawalRootIndex, newRoot, msg.sender, block.timestamp, block.number);
     }
 
     /**
@@ -246,10 +221,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @param proof The Merkle proof
      * @return True if the proof is valid
      */
-    function verifyWithdrawalProof(
-        bytes32 leaf,
-        bytes32[] calldata proof
-    ) external view returns (bool) {
+    function verifyWithdrawalProof(bytes32 leaf, bytes32[] calldata proof) external view returns (bool) {
         return MerkleProof.verify(proof, withdrawalRoot, leaf);
     }
 
@@ -260,23 +232,23 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @param proof The Merkle proof
      * @return Whether the proof is valid
      */
-    function verifyDepositProof(
-        bytes32 leaf,
-        uint256 leafIndex,
-        bytes32[] calldata proof
-    ) external view returns (bool) {
+    function verifyDepositProof(bytes32 leaf, uint256 leafIndex, bytes32[] calldata proof)
+        external
+        view
+        returns (bool)
+    {
         if (leafIndex >= depositLeafCount) {
             return false;
         }
-        
+
         bytes32 computedHash = leaf;
         uint256 currentIndex = leafIndex;
         uint256 currentLevelNodes = depositLeafCount;
-        
+
         for (uint256 i = 0; i < proof.length; i++) {
             // Check if this is the last node at this level and it's odd
             bool isLastNodeInOddLevel = (currentIndex == currentLevelNodes - 1) && (currentLevelNodes % 2 == 1);
-            
+
             if (isLastNodeInOddLevel) {
                 // For the last node in an odd level, it's duplicated
                 // The node is just passed up to the next level without hashing
@@ -292,12 +264,12 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
                     computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
                 }
             }
-            
+
             // Update for next level
             currentIndex = currentIndex / 2;
             currentLevelNodes = (currentLevelNodes + 1) / 2; // Calculate nodes at next level
         }
-        
+
         return computedHash == depositRoot;
     }
 
@@ -318,11 +290,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @return leafCount The current leaf count
      * @return root The current deposit root
      */
-    function getDepositTreeInfo() external view returns (
-        uint256 depth,
-        uint256 leafCount,
-        bytes32 root
-    ) {
+    function getDepositTreeInfo() external view returns (uint256 depth, uint256 leafCount, bytes32 root) {
         return (depositTreeDepth, depositLeafCount, depositRoot);
     }
 
@@ -331,10 +299,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
      * @return index The current withdrawal root index
      * @return root The current withdrawal root
      */
-    function getWithdrawalTreeInfo() external view returns (
-        uint256 index,
-        bytes32 root
-    ) {
+    function getWithdrawalTreeInfo() external view returns (uint256 index, bytes32 root) {
         return (withdrawalRootIndex, withdrawalRoot);
     }
 
@@ -346,15 +311,15 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
     function _calculateNewDepositRoot(bytes32 newCommitment) internal returns (bytes32) {
         uint256 newLeafCount = depositLeafCount + 1;
         bytes32[] memory updatedLeaves = new bytes32[](newLeafCount);
-        
+
         // Copy existing leaves
         for (uint256 i = 0; i < depositLeafCount; i++) {
             updatedLeaves[i] = leaves[i];
         }
-        
+
         // Add new leaf
         updatedLeaves[depositLeafCount] = newCommitment;
-        
+
         // Calculate new root and store intermediate nodes
         return _calculateMerkleRoot(updatedLeaves);
     }
@@ -376,24 +341,24 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         uint256 n = leafArray.length;
         if (n == 0) return bytes32(0);
         if (n == 1) return leafArray[0];
-        
+
         // Create a working array that we'll use to build the tree
         uint256 maxSize = 2 * n; // Allocate enough space for all levels
         bytes32[] memory nodes = new bytes32[](maxSize);
-        
+
         // Copy leaves to the nodes array and store in treeNodes
         for (uint256 i = 0; i < n; i++) {
             nodes[i] = leafArray[i];
             treeNodes[0][i] = leafArray[i];
         }
-        
+
         // Start building the tree level by level
         uint256 levelSize = n;
         uint256 level = 0;
-        
+
         while (levelSize > 1) {
             uint256 nextLevelSize = (levelSize + 1) / 2; // Ceiling division for odd numbers
-            
+
             // Process pairs of nodes
             for (uint256 i = 0; i < levelSize / 2; i++) {
                 bytes32 left = nodes[i * 2];
@@ -401,23 +366,23 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
                 nodes[n + i] = keccak256(abi.encodePacked(left, right));
                 treeNodes[level + 1][i] = nodes[n + i]; // Store intermediate nodes
             }
-            
+
             // Handle odd node at the end if present
             if (levelSize % 2 == 1) {
                 // Duplicate the last node
                 nodes[n + levelSize / 2] = nodes[levelSize - 1];
                 treeNodes[level + 1][levelSize / 2] = nodes[levelSize - 1];
             }
-            
+
             // Copy the next level back to the beginning of our working array
             for (uint256 i = 0; i < nextLevelSize; i++) {
                 nodes[i] = nodes[n + i];
             }
-            
+
             levelSize = nextLevelSize;
             level++;
         }
-        
+
         return nodes[0]; // Root is at index 0 after the final iteration
     }
 
@@ -442,16 +407,16 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         if (depositLeafCount <= 1) {
             return new bytes32[](0);
         }
-        
+
         uint256 treeDepth = _getTreeDepth(depositLeafCount);
         bytes32[] memory proof = new bytes32[](treeDepth);
         uint256 currentIndex = leafIndex;
         uint256 currentLevelNodes = depositLeafCount;
-        
+
         for (uint256 level = 0; level < treeDepth; level++) {
             // Check if this is the last node at an odd-numbered level
             bool isLastNodeInOddLevel = (currentIndex == currentLevelNodes - 1) && (currentLevelNodes % 2 == 1);
-            
+
             if (isLastNodeInOddLevel) {
                 // For the last node in an odd level, we should use the node itself as the proof element
                 // This is because when verifying, we'll pair the node with itself
@@ -479,12 +444,12 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
                 }
                 proof[level] = siblingNode;
             }
-            
+
             // Move to parent index for next level
             currentIndex = currentIndex / 2;
             currentLevelNodes = (currentLevelNodes + 1) / 2; // Calculate nodes at next level
         }
-        
+
         return proof;
     }
 
@@ -499,7 +464,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         }
         return result;
     }
-    
+
     /**
      * @dev Calculate the tree depth based on the number of leaves
      */
@@ -507,7 +472,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         if (leafCount <= 1) return 0;
         return _log2(_nextPowerOfTwo(leafCount));
     }
-    
+
     /**
      * @dev Calculate a node hash recursively if not stored
      * @param level The tree level of the node
@@ -523,11 +488,11 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
                 return bytes32(0);
             }
         }
-        
+
         // Calculate the number of nodes at the child level
         uint256 childLevel = level - 1;
         uint256 nodesAtChildLevel;
-        
+
         if (childLevel == 0) {
             // At leaf level, it's the number of leaves
             nodesAtChildLevel = depositLeafCount;
@@ -539,11 +504,11 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
             }
             nodesAtChildLevel = leavesNeeded;
         }
-        
+
         // Calculate child indices
         uint256 leftChildIndex = index * 2;
         uint256 rightChildIndex = leftChildIndex + 1;
-        
+
         // Get left child (from storage or calculate)
         bytes32 leftChild;
         if (leftChildIndex < nodesAtChildLevel) {
@@ -555,14 +520,14 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         } else {
             return bytes32(0); // Out of bounds
         }
-        
+
         // Handle odd number of nodes at child level
         if (rightChildIndex >= nodesAtChildLevel) {
             // If this is the last node at this level and there are odd nodes below,
             // duplicate the left child
             return leftChild;
         }
-        
+
         // Get right child (from storage or calculate)
         bytes32 rightChild;
         if (treeNodes[childLevel][rightChildIndex] != bytes32(0)) {
@@ -570,7 +535,7 @@ contract MerkleStateManager is Ownable, Pausable, ReentrancyGuard {
         } else {
             rightChild = _calculateNodeHash(childLevel, rightChildIndex);
         }
-        
+
         // Hash the children together to get the parent
         return keccak256(abi.encodePacked(leftChild, rightChild));
     }
